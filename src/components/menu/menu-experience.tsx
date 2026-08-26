@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import {
+  CupSoda,
   Flame,
   Minus,
   Plus,
@@ -19,6 +20,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  groupBarMenuItems,
+  type BarDrinkGroup,
+  type BarTemperature,
+} from "@/lib/bar-menu";
 import { cartQuantity, cartTotal, canOrder } from "@/lib/cart";
 import { cn, formatPrice, localize } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
@@ -42,6 +48,8 @@ const rotatedImageClasses: Record<string, string> = {
   "fried-lagman": "rotate-[270deg]",
   "guyru-lagman": "rotate-[270deg]",
 };
+
+const isBarCategory = (categoryId: string) => categoryId.startsWith("bar-");
 
 function ProductCard({
   item,
@@ -162,6 +170,190 @@ function ProductCard({
             </Button>
           )}
         </div>
+      </div>
+    </article>
+  );
+}
+
+function DrinkGroupCard({ group }: { group: BarDrinkGroup }) {
+  const locale = useLocaleStore((state) => state.locale);
+  const add = useCartStore((state) => state.add);
+  const [selectedItemId, setSelectedItemId] = useState(
+    group.variants[0]?.item.id || "",
+  );
+  const selectedVariant =
+    group.variants.find((variant) => variant.item.id === selectedItemId) ||
+    group.variants[0];
+  const item = selectedVariant.item;
+  const line = useCartStore((state) =>
+    state.lines.find((entry) => entry.item.id === item.id),
+  );
+  const unavailable = !canOrder(item);
+  const temperatures = Array.from(
+    new Set(
+      group.variants
+        .map((variant) => variant.temperature)
+        .filter((value): value is BarTemperature => Boolean(value)),
+    ),
+  );
+  const volumes = Array.from(
+    new Set(
+      group.variants
+        .map((variant) => variant.volume)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  const selectTemperature = (next: BarTemperature) => {
+    const matchingVariant =
+      group.variants.find(
+        (variant) =>
+          variant.temperature === next &&
+          variant.volume === selectedVariant.volume,
+      ) || group.variants.find((variant) => variant.temperature === next);
+    if (!matchingVariant) return;
+    setSelectedItemId(matchingVariant.item.id);
+  };
+
+  const selectVolume = (next: string) => {
+    const matchingVariant =
+      group.variants.find(
+        (variant) =>
+          variant.volume === next &&
+          variant.temperature === selectedVariant.temperature,
+      ) || group.variants.find((variant) => variant.volume === next);
+    if (!matchingVariant) return;
+    setSelectedItemId(matchingVariant.item.id);
+  };
+
+  return (
+    <article className="group flex min-h-56 flex-col border border-[#020D13]/10 bg-white p-4 transition hover:-translate-y-0.5 hover:border-[#020D13]/20 hover:shadow-[0_16px_45px_rgba(2,13,19,.07)] sm:p-5">
+      <div className="flex items-start gap-3 sm:gap-4">
+        {item.imageUrl ? (
+          <div className="relative size-24 shrink-0 overflow-hidden bg-[#001015] sm:size-28">
+            <Image
+              src={item.imageUrl}
+              alt={localize(locale, group.nameRu, group.nameKk)}
+              fill
+              sizes="(max-width: 640px) 96px, 112px"
+              className="object-cover transition duration-300 group-hover:scale-[1.03]"
+            />
+          </div>
+        ) : (
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#020D13] text-white">
+            <CupSoda className="size-5" aria-hidden="true" />
+          </span>
+        )}
+        <div className="min-w-0">
+          <h3 className="text-base font-bold leading-snug sm:text-lg">
+            {localize(locale, group.nameRu, group.nameKk)}
+          </h3>
+          <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-[#020D13]/55 sm:text-sm">
+            {localize(
+              locale,
+              item.descriptionRu || group.descriptionRu,
+              item.descriptionKk || group.descriptionKk,
+            ) || "Напиток из барного меню Tuysqan."}
+          </p>
+        </div>
+      </div>
+      {(temperatures.length > 1 || volumes.length > 1) && (
+        <div className="mt-4 space-y-3">
+          {temperatures.length > 1 && (
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-[#020D13]/50">
+                Температура
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {temperatures.map((temperature) => (
+                  <button
+                    type="button"
+                    key={temperature}
+                    onClick={() => selectTemperature(temperature)}
+                    aria-pressed={selectedVariant.temperature === temperature}
+                    className={cn(
+                      "min-h-11 rounded-md border px-3 text-sm font-semibold transition",
+                      selectedVariant.temperature === temperature
+                        ? "border-[#020D13] bg-[#020D13] text-white"
+                        : "border-[#020D13]/12 bg-[#FFFBFC] hover:border-[#020D13]/30",
+                    )}
+                  >
+                    {temperature === "hot"
+                      ? locale === "kk"
+                        ? "Ыстық"
+                        : "Хот"
+                      : locale === "kk"
+                        ? "Салқын"
+                        : "Айс"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {volumes.length > 1 && (
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-[#020D13]/50">
+                Объём
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {volumes.map((volume) => (
+                  <button
+                    type="button"
+                    key={volume}
+                    onClick={() => selectVolume(volume)}
+                    aria-pressed={selectedVariant.volume === volume}
+                    className={cn(
+                      "min-h-11 rounded-md border px-3 text-sm font-semibold transition",
+                      selectedVariant.volume === volume
+                        ? "border-[#020D13] bg-[#020D13] text-white"
+                        : "border-[#020D13]/12 bg-[#FFFBFC] hover:border-[#020D13]/30",
+                    )}
+                  >
+                    {volume}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="mt-auto flex items-end justify-between gap-3 pt-5">
+        <strong className="whitespace-nowrap text-lg">
+          {formatPrice(item.price)}
+        </strong>
+        {line ? (
+          <div className="inline-flex items-center rounded-md border border-[#020D13]/15">
+            <button
+              type="button"
+              onClick={() => useCartStore.getState().decrease(item.id)}
+              className="grid size-10 place-items-center"
+              aria-label="Уменьшить"
+            >
+              <Minus className="size-4" />
+            </button>
+            <span className="min-w-6 text-center text-sm font-bold">
+              {line.quantity}
+            </span>
+            <button
+              type="button"
+              onClick={() => add(item)}
+              className="grid size-10 place-items-center"
+              aria-label="Увеличить"
+            >
+              <Plus className="size-4" />
+            </button>
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            onClick={() => add(item)}
+            disabled={unavailable}
+            aria-label={`Добавить ${item.nameRu}`}
+          >
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">Добавить</span>
+          </Button>
+        )}
       </div>
     </article>
   );
@@ -323,6 +515,11 @@ export function MenuExperience({
     [items, dineIn, normalized, activeCategory],
   );
   const active = categories.find((category) => category.id === activeCategory);
+  const compactBarMenu = !normalized && isBarCategory(activeCategory);
+  const drinkGroups = useMemo(
+    () => (compactBarMenu ? groupBarMenuItems(visibleItems) : []),
+    [compactBarMenu, visibleItems],
+  );
   const quantity = cartQuantity(lines);
   const total = cartTotal(lines);
   const dineInCheckoutHref = preselectedTable
@@ -374,15 +571,26 @@ export function MenuExperience({
           </label>
         </div>
         {visibleItems.length ? (
-          <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
-            {visibleItems.map((item, index) => (
-              <ProductCard
-                key={item.id}
-                item={item}
-                eager={index < 4}
-                onOpen={() => setSelected(item)}
-              />
-            ))}
+          <div
+            className={cn(
+              "grid gap-3 sm:gap-5",
+              compactBarMenu
+                ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+                : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4",
+            )}
+          >
+            {compactBarMenu
+              ? drinkGroups.map((group) => (
+                  <DrinkGroupCard key={group.key} group={group} />
+                ))
+              : visibleItems.map((item, index) => (
+                  <ProductCard
+                    key={item.id}
+                    item={item}
+                    eager={index < 4}
+                    onOpen={() => setSelected(item)}
+                  />
+                ))}
           </div>
         ) : (
           <div className="grid min-h-64 place-items-center border border-dashed border-[#020D13]/20 bg-white p-8 text-center">

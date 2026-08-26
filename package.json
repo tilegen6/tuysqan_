@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "seed:bar": "tsx scripts/seed-bar-menu.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",

@@ -5,6 +5,11 @@ import type {
   RestaurantTable,
   SetItem,
 } from "@/types/domain";
+import {
+  barCategoryRows,
+  barMenuSeeds,
+  type BarMenuSeed,
+} from "@/data/bar-menu";
 
 export const categories: Category[] = [
   ["breakfast", "breakfast", "Завтраки", "Таңғы ас"],
@@ -30,6 +35,7 @@ export const categories: Category[] = [
   ["fried-rolls", "fried-rolls", "Жареные роллы", "Қуырылған роллдар"],
   ["baked-rolls", "baked-rolls", "Запечённые роллы", "Пісірілген роллдар"],
   ["sushi-sets", "sushi-sets", "Сеты", "Сеттер"],
+  ...barCategoryRows,
 ].map(([id, slug, nameRu, nameKk], index) => ({
   id,
   slug,
@@ -39,22 +45,7 @@ export const categories: Category[] = [
   isVisible: true,
 }));
 
-type ItemSeed = [
-  categoryId: string,
-  slug: string,
-  nameRu: string,
-  nameKk: string,
-  price: number,
-  descriptionRu?: string,
-  descriptionKk?: string,
-  imageUrl?: string,
-  flags?: Partial<
-    Pick<
-      MenuItem,
-      "isFeatured" | "isSpicy" | "needsReview" | "pieceCount" | "source"
-    >
-  >,
-];
+type ItemSeed = BarMenuSeed;
 
 const seeds: ItemSeed[] = [
   [
@@ -1507,6 +1498,7 @@ const seeds: ItemSeed[] = [
     "/promos/japanese-fairy-tale.jpeg",
     { isFeatured: true, pieceCount: 80, source: "promotion_graphic" },
   ],
+  ...barMenuSeeds,
 ];
 
 function normalizedMenuImageUrl(imageUrl?: string) {

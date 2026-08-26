@@ -7,7 +7,7 @@ import { getMenuData } from "@/lib/data";
 export const metadata: Metadata = {
   title: "Меню",
   description:
-    "Полное меню Tuysqan: завтраки, горячие блюда, восточная кухня, пицца, суши и сеты.",
+    "Полное меню Tuysqan: завтраки, горячие блюда, восточная кухня, пицца, суши, кофе, чаи, лимонады и другие напитки.",
 };
 export default async function MenuPage({
   searchParams,
@@ -34,8 +34,8 @@ export default async function MenuPage({
               Меню Tuysqan
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-white/60">
-              Все блюда и цены перенесены из актуального меню Tuysqan и
-              суши-материалов.
+              Все блюда и цены перенесены из актуального основного, суши- и
+              барного меню Tuysqan.
             </p>
           </div>
         </section>

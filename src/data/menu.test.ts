@@ -4,10 +4,37 @@ import { describe, expect, it } from "vitest";
 import { categories, menuItems, promotions, setItems } from "@/data/menu";
 
 describe("imported menu", () => {
-  it("contains the complete PDF and sushi catalogue", () => {
-    expect(categories).toHaveLength(18);
-    expect(menuItems).toHaveLength(139);
+  it("contains the complete food, sushi and bar catalogues", () => {
+    expect(categories).toHaveLength(26);
+    expect(menuItems).toHaveLength(241);
     expect(setItems).toHaveLength(32);
+  });
+
+  it("contains all bar categories and verified PDF prices", () => {
+    const barCategories = categories
+      .filter((category) => category.id.startsWith("bar-"))
+      .map((category) => category.id);
+    const itemsBySlug = new Map(menuItems.map((item) => [item.slug, item]));
+
+    expect(barCategories).toEqual([
+      "bar-coffee",
+      "bar-signature",
+      "bar-tea",
+      "bar-lemonades",
+      "bar-milkshakes",
+      "bar-fresh",
+      "bar-smoothies",
+      "bar-soft-drinks",
+    ]);
+    expect(
+      menuItems.filter((item) => item.categoryId.startsWith("bar-")),
+    ).toHaveLength(102);
+    expect(itemsBySlug.get("bar-cappuccino-ice-04")?.price).toBe(1190);
+    expect(itemsBySlug.get("bar-tea-seabuckthorn-orange-04l")?.price).toBe(990);
+    expect(itemsBySlug.get("bar-fresh-orange")?.price).toBe(2390);
+    expect(itemsBySlug.get("bar-ice-urbech")?.price).toBe(2190);
+    expect(itemsBySlug.get("bar-juice-ball-blue-lagoon")?.price).toBe(1790);
+    expect(itemsBySlug.get("bar-bubble-shake-berry")?.price).toBe(1990);
   });
 
   it("has unique identifiers and slugs", () => {
@@ -193,7 +220,13 @@ describe("imported menu", () => {
 
     for (const url of imageUrls) {
       expect(
-        existsSync(join(process.cwd(), "public", url.replace(/^\//, ""))),
+        existsSync(
+          join(
+            process.cwd(),
+            "public",
+            url.replace(/^\//, "").split(/[?#]/, 1)[0],
+          ),
+        ),
         url,
       ).toBe(true);
     }
