@@ -10,7 +10,7 @@ import {
   ShoppingBag,
   Sparkles,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { CartPanel } from "@/components/cart/cart-panel";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,14 +50,15 @@ const rotatedImageClasses: Record<string, string> = {
 };
 
 const isBarCategory = (categoryId: string) => categoryId.startsWith("bar-");
+type MenuKind = "main" | "bar";
 
-function ProductCard({
+const ProductCard = memo(function ProductCard({
   item,
   onOpen,
   eager = false,
 }: {
   item: MenuItem;
-  onOpen: () => void;
+  onOpen: (item: MenuItem) => void;
   eager?: boolean;
 }) {
   const locale = useLocaleStore((state) => state.locale);
@@ -70,7 +71,7 @@ function ProductCard({
     <article className="group grid min-h-full grid-rows-[auto_1fr] overflow-hidden border border-[#020D13]/10 bg-white transition hover:-translate-y-0.5 hover:shadow-[0_18px_55px_rgba(2,13,19,.09)]">
       <button
         type="button"
-        onClick={onOpen}
+        onClick={() => onOpen(item)}
         className="relative aspect-[4/3] overflow-hidden bg-[#020D13] text-left"
         aria-label={`Открыть ${item.nameRu}`}
       >
@@ -120,7 +121,11 @@ function ProductCard({
         )}
       </button>
       <div className="flex flex-col p-3.5 sm:p-5">
-        <button type="button" onClick={onOpen} className="text-left">
+        <button
+          type="button"
+          onClick={() => onOpen(item)}
+          className="text-left"
+        >
           <h3 className="text-[15px] font-bold leading-snug sm:text-lg">
             {localize(locale, item.nameRu, item.nameKk)}
           </h3>
@@ -173,9 +178,13 @@ function ProductCard({
       </div>
     </article>
   );
-}
+});
 
-function DrinkGroupCard({ group }: { group: BarDrinkGroup }) {
+const DrinkGroupCard = memo(function DrinkGroupCard({
+  group,
+}: {
+  group: BarDrinkGroup;
+}) {
   const locale = useLocaleStore((state) => state.locale);
   const add = useCartStore((state) => state.add);
   const [selectedItemId, setSelectedItemId] = useState(
@@ -357,6 +366,104 @@ function DrinkGroupCard({ group }: { group: BarDrinkGroup }) {
       </div>
     </article>
   );
+});
+
+type MenuSectionData = {
+  category: Category;
+  items: MenuItem[];
+  drinkGroups: BarDrinkGroup[];
+};
+
+const MenuSection = memo(function MenuSection({
+  section,
+  sectionIndex,
+  locale,
+  onOpen,
+}: {
+  section: MenuSectionData;
+  sectionIndex: number;
+  locale: "ru" | "kk";
+  onOpen: (item: MenuItem) => void;
+}) {
+  const categoryTitleId = `menu-title-${section.category.slug}`;
+  const barSection = isBarCategory(section.category.id);
+
+  return (
+    <section
+      id={`menu-category-${section.category.slug}`}
+      data-category-id={section.category.id}
+      aria-labelledby={categoryTitleId}
+      className="scroll-mt-48 [contain:layout_style]"
+    >
+      <div className="mb-5 flex items-end justify-between gap-4 border-b border-[#020D13]/10 pb-4">
+        <h3
+          id={categoryTitleId}
+          className="text-2xl font-bold tracking-tight sm:text-3xl"
+        >
+          {localize(locale, section.category.nameRu, section.category.nameKk)}
+        </h3>
+        <span className="shrink-0 text-xs font-semibold text-[#020D13]/45">
+          {barSection ? section.drinkGroups.length : section.items.length} поз.
+        </span>
+      </div>
+      <div
+        className={cn(
+          "grid gap-3 sm:gap-5",
+          barSection
+            ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+            : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4",
+        )}
+      >
+        {barSection
+          ? section.drinkGroups.map((group) => (
+              <DrinkGroupCard key={group.key} group={group} />
+            ))
+          : section.items.map((item, itemIndex) => (
+              <ProductCard
+                key={item.id}
+                item={item}
+                eager={sectionIndex === 0 && itemIndex < 4}
+                onOpen={onOpen}
+              />
+            ))}
+      </div>
+    </section>
+  );
+});
+
+function MenuCartActions({ onOpen }: { onOpen: () => void }) {
+  const quantity = useCartStore((state) => cartQuantity(state.lines));
+  const total = useCartStore((state) => cartTotal(state.lines));
+
+  if (quantity === 0) return null;
+
+  return (
+    <>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#020D13] p-3 text-white shadow-2xl md:hidden">
+        <button
+          onClick={onOpen}
+          aria-label={`Открыть корзину: ${quantity}`}
+          className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-between rounded-md bg-white px-5 font-bold text-[#020D13]"
+        >
+          <span className="flex items-center gap-2">
+            <ShoppingBag className="size-4" />
+            Корзина · {quantity}
+          </span>
+          <span>{formatPrice(total)}</span>
+        </button>
+      </div>
+      <button
+        onClick={onOpen}
+        aria-label={`Открыть корзину: ${quantity}`}
+        className="fixed bottom-6 right-6 z-40 hidden min-h-12 items-center gap-3 rounded-md bg-[#020D13] px-5 font-bold text-white shadow-xl md:flex"
+      >
+        <ShoppingBag className="size-5" />
+        <span>
+          {quantity} · {formatPrice(total)}
+        </span>
+      </button>
+    </>
+  );
 }
 
 function ProductDialog({
@@ -482,63 +589,219 @@ export function MenuExperience({
   initialDishSlug?: string;
 }) {
   const locale = useLocaleStore((state) => state.locale);
-  const lines = useCartStore((state) => state.lines);
   const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState(categories[0]?.id || "");
-  const [selected, setSelected] = useState<MenuItem | null>(() =>
-    initialDishSlug
-      ? items.find(
-          (item) =>
-            item.slug === initialDishSlug &&
-            !item.isArchived &&
-            (dineIn ? item.isVisibleDineIn : item.isVisiblePublic),
-        ) || null
-      : null,
+  const initialDish = useMemo(
+    () =>
+      initialDishSlug
+        ? items.find(
+            (item) =>
+              item.slug === initialDishSlug &&
+              !item.isArchived &&
+              (dineIn ? item.isVisibleDineIn : item.isVisiblePublic),
+          )
+        : undefined,
+    [dineIn, initialDishSlug, items],
+  );
+  const [activeMenu, setActiveMenu] = useState<MenuKind>(() =>
+    initialDish && isBarCategory(initialDish.categoryId) ? "bar" : "main",
+  );
+  const [activeCategory, setActiveCategory] = useState(
+    initialDish?.categoryId ||
+      categories.find((category) => !isBarCategory(category.id))?.id ||
+      categories[0]?.id ||
+      "",
+  );
+  const [selected, setSelected] = useState<MenuItem | null>(
+    () => initialDish || null,
   );
   const [cartOpen, setCartOpen] = useState(false);
   const normalized = query.trim().toLocaleLowerCase();
-  const visibleItems = useMemo(
+  const availableItems = useMemo(
     () =>
-      items.filter((item) => {
-        if (dineIn ? !item.isVisibleDineIn : !item.isVisiblePublic)
-          return false;
-        if (item.isArchived) return false;
-        if (normalized)
-          return [
-            item.nameRu,
-            item.nameKk,
-            item.descriptionRu,
-            item.descriptionKk,
-          ].some((value) => value?.toLocaleLowerCase().includes(normalized));
-        return item.categoryId === activeCategory;
-      }),
-    [items, dineIn, normalized, activeCategory],
+      items.filter(
+        (item) =>
+          !item.isArchived &&
+          (dineIn ? item.isVisibleDineIn : item.isVisiblePublic),
+      ),
+    [items, dineIn],
   );
-  const active = categories.find((category) => category.id === activeCategory);
-  const compactBarMenu = !normalized && isBarCategory(activeCategory);
-  const drinkGroups = useMemo(
-    () => (compactBarMenu ? groupBarMenuItems(visibleItems) : []),
-    [compactBarMenu, visibleItems],
+  const mainCategories = useMemo(
+    () =>
+      categories.filter(
+        (category) => category.isVisible && !isBarCategory(category.id),
+      ),
+    [categories],
   );
-  const quantity = cartQuantity(lines);
-  const total = cartTotal(lines);
+  const barCategories = useMemo(
+    () =>
+      categories.filter(
+        (category) => category.isVisible && isBarCategory(category.id),
+      ),
+    [categories],
+  );
+  const menuCategories = activeMenu === "bar" ? barCategories : mainCategories;
+  const visibleSections = useMemo(
+    () =>
+      menuCategories
+        .map((category) => {
+          const sectionItems = availableItems.filter((item) => {
+            if (item.categoryId !== category.id) return false;
+            if (!normalized) return true;
+
+            return [
+              item.nameRu,
+              item.nameKk,
+              item.descriptionRu,
+              item.descriptionKk,
+            ].some((value) => value?.toLocaleLowerCase().includes(normalized));
+          });
+
+          return {
+            category,
+            items: sectionItems,
+            drinkGroups: isBarCategory(category.id)
+              ? groupBarMenuItems(sectionItems)
+              : [],
+          };
+        })
+        .filter((section) => section.items.length > 0),
+    [availableItems, menuCategories, normalized],
+  );
+  const visibleItemCount = visibleSections.reduce(
+    (totalCount, section) => totalCount + section.items.length,
+    0,
+  );
   const dineInCheckoutHref = preselectedTable
     ? `/dine-in/cart?table=${encodeURIComponent(preselectedTable)}`
     : "/dine-in/cart";
+
+  const openProduct = useCallback((item: MenuItem) => setSelected(item), []);
+  const openCart = useCallback(() => setCartOpen(true), []);
+
+  useEffect(() => {
+    if (normalized || typeof IntersectionObserver === "undefined") return;
+
+    const sectionElements = menuCategories
+      .map((category) =>
+        document.getElementById(`menu-category-${category.slug}`),
+      )
+      .filter((section): section is HTMLElement => Boolean(section));
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const activeEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort(
+            (first, second) =>
+              Math.abs(first.boundingClientRect.top - 192) -
+              Math.abs(second.boundingClientRect.top - 192),
+          )[0];
+        const categoryId = activeEntry?.target.getAttribute("data-category-id");
+        if (categoryId) {
+          setActiveCategory((current) =>
+            current === categoryId ? current : categoryId,
+          );
+        }
+      },
+      { rootMargin: "-190px 0px -65% 0px", threshold: 0 },
+    );
+
+    sectionElements.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, [menuCategories, normalized]);
+
+  useEffect(() => {
+    document
+      .querySelector<HTMLElement>(
+        `[data-menu-category-button="${activeCategory}"]`,
+      )
+      ?.scrollIntoView({
+        behavior: "instant",
+        block: "nearest",
+        inline: "center",
+      });
+  }, [activeCategory]);
+
+  const changeMenu = (menu: MenuKind) => {
+    const nextCategories = menu === "bar" ? barCategories : mainCategories;
+    setActiveMenu(menu);
+    setActiveCategory(nextCategories[0]?.id || "");
+    setQuery("");
+    requestAnimationFrame(() => {
+      document.getElementById("menu-content")?.scrollIntoView({
+        behavior: "instant",
+        block: "start",
+      });
+    });
+  };
+
+  const scrollToCategory = (category: Category) => {
+    setActiveCategory(category.id);
+    setQuery("");
+    requestAnimationFrame(() => {
+      document
+        .getElementById(`menu-category-${category.slug}`)
+        ?.scrollIntoView({
+          behavior: "instant",
+          block: "start",
+        });
+    });
+  };
+
+  const menuTitle =
+    activeMenu === "bar"
+      ? locale === "kk"
+        ? "Бар мәзірі"
+        : "Барное меню"
+      : locale === "kk"
+        ? "Негізгі мәзір"
+        : "Основное меню";
 
   return (
     <div className="relative">
       <div className="sticky top-18 z-30 border-y border-[#020D13]/8 bg-[#FFFBFC]/95 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
-          <div className="flex gap-2 overflow-x-auto py-3 [scrollbar-width:none]">
-            {categories.map((category) => (
+          <div
+            className="grid grid-cols-2 gap-2 pt-3 sm:w-[380px]"
+            aria-label="Раздел меню"
+          >
+            {(["main", "bar"] as const).map((menu) => (
               <button
+                type="button"
+                key={menu}
+                onClick={() => changeMenu(menu)}
+                aria-pressed={activeMenu === menu}
+                disabled={menu === "bar" && barCategories.length === 0}
+                className={cn(
+                  "min-h-11 rounded-md px-4 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40",
+                  activeMenu === menu
+                    ? "bg-[#020D13] text-white"
+                    : "border border-[#020D13]/12 bg-white hover:border-[#020D13]/30",
+                )}
+              >
+                {menu === "bar"
+                  ? locale === "kk"
+                    ? "Бар мәзірі"
+                    : "Барное меню"
+                  : locale === "kk"
+                    ? "Негізгі мәзір"
+                    : "Основное меню"}
+              </button>
+            ))}
+          </div>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
+            {menuCategories.map((category) => (
+              <button
+                type="button"
                 key={category.id}
-                onClick={() => {
-                  setActiveCategory(category.id);
-                  setQuery("");
-                }}
-                className={`min-h-10 shrink-0 rounded-md px-4 text-xs font-bold transition ${activeCategory === category.id && !query ? "bg-[#020D13] text-white" : "border border-[#020D13]/12 bg-white"}`}
+                data-menu-category-button={category.id}
+                onClick={() => scrollToCategory(category)}
+                aria-pressed={activeCategory === category.id && !query}
+                className={cn(
+                  "min-h-11 shrink-0 rounded-md border px-4 text-xs font-bold transition",
+                  activeCategory === category.id && !query
+                    ? "border-[#020D13] bg-[#020D13] text-white"
+                    : "border-[#020D13]/12 bg-white hover:border-[#020D13]/30",
+                )}
               >
                 {localize(locale, category.nameRu, category.nameKk)}
               </button>
@@ -546,7 +809,10 @@ export function MenuExperience({
           </div>
         </div>
       </div>
-      <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+      <div
+        id="menu-content"
+        className="mx-auto max-w-[1440px] scroll-mt-48 px-4 py-8 sm:px-6 lg:px-10 lg:py-12"
+      >
         <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[.18em] text-[#020D13]/45">
@@ -554,43 +820,38 @@ export function MenuExperience({
               {dineIn ? "Заказ в ресторане" : "Меню Tuysqan"}
             </p>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              {query
-                ? "Результаты поиска"
-                : localize(locale, active?.nameRu, active?.nameKk)}
+              {query ? "Результаты поиска" : menuTitle}
             </h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[#020D13]/55">
+              {query
+                ? `Найдено позиций: ${visibleItemCount}`
+                : "Выберите подраздел или листайте меню — категории продолжаются одной лентой."}
+            </p>
           </div>
           <label className="relative block w-full sm:max-w-sm">
             <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[#020D13]/45" />
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Найти блюдо…"
+              placeholder={
+                activeMenu === "bar" ? "Найти напиток…" : "Найти блюдо…"
+              }
               className="pl-11"
               aria-label="Поиск по меню"
             />
           </label>
         </div>
-        {visibleItems.length ? (
-          <div
-            className={cn(
-              "grid gap-3 sm:gap-5",
-              compactBarMenu
-                ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
-                : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4",
-            )}
-          >
-            {compactBarMenu
-              ? drinkGroups.map((group) => (
-                  <DrinkGroupCard key={group.key} group={group} />
-                ))
-              : visibleItems.map((item, index) => (
-                  <ProductCard
-                    key={item.id}
-                    item={item}
-                    eager={index < 4}
-                    onOpen={() => setSelected(item)}
-                  />
-                ))}
+        {visibleSections.length ? (
+          <div className="space-y-14 sm:space-y-18">
+            {visibleSections.map((section, sectionIndex) => (
+              <MenuSection
+                key={section.category.id}
+                section={section}
+                sectionIndex={sectionIndex}
+                locale={locale}
+                onOpen={openProduct}
+              />
+            ))}
           </div>
         ) : (
           <div className="grid min-h-64 place-items-center border border-dashed border-[#020D13]/20 bg-white p-8 text-center">
@@ -621,33 +882,7 @@ export function MenuExperience({
           />
         </DialogContent>
       </Dialog>
-      {quantity > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#020D13] p-3 text-white shadow-2xl md:hidden">
-          <button
-            onClick={() => setCartOpen(true)}
-            aria-label={`Открыть корзину: ${quantity}`}
-            className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-between rounded-md bg-white px-5 font-bold text-[#020D13]"
-          >
-            <span className="flex items-center gap-2">
-              <ShoppingBag className="size-4" />
-              Корзина · {quantity}
-            </span>
-            <span>{formatPrice(total)}</span>
-          </button>
-        </div>
-      )}
-      {quantity > 0 && (
-        <button
-          onClick={() => setCartOpen(true)}
-          aria-label={`Открыть корзину: ${quantity}`}
-          className="fixed bottom-6 right-6 z-40 hidden min-h-12 items-center gap-3 rounded-md bg-[#020D13] px-5 font-bold text-white shadow-xl md:flex"
-        >
-          <ShoppingBag className="size-5" />
-          <span>
-            {quantity} · {formatPrice(total)}
-          </span>
-        </button>
-      )}
+      <MenuCartActions onOpen={openCart} />
     </div>
   );
 }
