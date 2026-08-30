@@ -10,7 +10,7 @@ import {
   ShoppingBag,
   Sparkles,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CartPanel } from "@/components/cart/cart-panel";
 import { Button } from "@/components/ui/button";
 import {
@@ -615,6 +615,7 @@ export function MenuExperience({
     () => initialDish || null,
   );
   const [cartOpen, setCartOpen] = useState(false);
+  const categoryNavRef = useRef<HTMLDivElement>(null);
   const normalized = query.trim().toLocaleLowerCase();
   const availableItems = useMemo(
     () =>
@@ -710,15 +711,17 @@ export function MenuExperience({
   }, [menuCategories, normalized]);
 
   useEffect(() => {
-    document
-      .querySelector<HTMLElement>(
-        `[data-menu-category-button="${activeCategory}"]`,
-      )
-      ?.scrollIntoView({
-        behavior: "instant",
-        block: "nearest",
-        inline: "center",
-      });
+    const categoryNav = categoryNavRef.current;
+    const activeButton = categoryNav?.querySelector<HTMLElement>(
+      `[data-menu-category-button="${activeCategory}"]`,
+    );
+    if (!categoryNav || !activeButton) return;
+
+    const centeredLeft =
+      activeButton.offsetLeft -
+      categoryNav.clientWidth / 2 +
+      activeButton.clientWidth / 2;
+    categoryNav.scrollTo({ left: centeredLeft, behavior: "auto" });
   }, [activeCategory]);
 
   const changeMenu = (menu: MenuKind) => {
@@ -788,7 +791,10 @@ export function MenuExperience({
               </button>
             ))}
           </div>
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
+          <div
+            ref={categoryNavRef}
+            className="-mx-4 flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10"
+          >
             {menuCategories.map((category) => (
               <button
                 type="button"

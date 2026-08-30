@@ -43,6 +43,17 @@ test("menu keeps categories in one continuous feed and switches to the bar", asy
   await expect(breakfasts).toBeVisible();
   await expect(soups).toBeAttached();
 
+  const freeScrollTarget = await soups.evaluate(
+    (section) => section.getBoundingClientRect().top + window.scrollY + 120,
+  );
+  await page.evaluate(
+    (scrollTop) => window.scrollTo(0, scrollTop),
+    freeScrollTarget,
+  );
+  await page.waitForTimeout(300);
+  const settledScrollTop = await page.evaluate(() => window.scrollY);
+  expect(Math.abs(settledScrollTop - freeScrollTarget)).toBeLessThan(3);
+
   await page.getByRole("button", { name: "Супы", exact: true }).click();
   await expect(soups).toBeInViewport();
 
