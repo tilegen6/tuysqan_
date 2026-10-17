@@ -68,7 +68,11 @@ Authorization is enforced in middleware, server components, API handlers, and da
 
 The migration creates a public `menu-images` bucket. Public visitors can read images; only authenticated admin profiles can upload, replace, or remove them. The admin menu editor previews uploads before the image URL is saved to a dish.
 
-Extracted source imagery is kept in `public/menu-assets`, brand assets in `public/brand`, and verified promotional assets in `public/promos`. No stock or AI-generated dish images are used.
+Extracted source imagery is kept in `public/menu-assets`, brand assets in `public/brand`, and promotional assets in `public/promos`. Generated dish artwork is kept in `public/menu-generated`. The seafood images in `public/menu-generated/seafood` were approved on 17 October 2026 and optimized to WebP.
+
+The seafood catalogue includes 23 dish cards and 28 prices from the supplied menu photos. Five fish dishes offer 0.5 kg / 1 kg portions within one card. Existing fish soup and tom yam records are updated; the former 8/16-piece fried wings are archived in favor of the 10-piece portion. Existing record IDs and order references are preserved. Unreadable ingredient weights are omitted.
+
+For a database-backed installation, apply `supabase/migrations/202610170001_seafood_menu.sql` alongside the frontend deployment. It updates only these dishes and three new categories, uses slug-based upserts to preserve existing database IDs, and leaves orders, settings, set contents and other dishes intact. The checked-in catalogue is also updated for installations without Supabase.
 
 ## Orders
 

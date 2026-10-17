@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 async function addFirstProduct(page: import("@playwright/test").Page) {
-  await page.goto("/menu", { waitUntil: "domcontentloaded" });
+  await page.goto("/menu", { waitUntil: "networkidle" });
   await page
     .getByRole("button", { name: /^Добавить / })
     .first()

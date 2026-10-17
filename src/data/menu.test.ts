@@ -5,8 +5,8 @@ import { categories, menuItems, promotions, setItems } from "@/data/menu";
 
 describe("imported menu", () => {
   it("contains the complete food, sushi and bar catalogues", () => {
-    expect(categories).toHaveLength(26);
-    expect(menuItems).toHaveLength(241);
+    expect(categories).toHaveLength(29);
+    expect(menuItems).toHaveLength(267);
     expect(setItems).toHaveLength(32);
   });
 
@@ -200,10 +200,10 @@ describe("imported menu", () => {
     );
   });
 
-  it("uses the rice-free artwork for royal fish soup", () => {
+  it("uses the approved artwork for the updated fish soup", () => {
     expect(
       menuItems.find((item) => item.slug === "royal-fish-soup")?.imageUrl,
-    ).toBe("/menu-generated/royal-fish-soup-transparent-v3.png");
+    ).toBe("/menu-generated/seafood/fish-ukha.webp");
   });
 
   it("serves normalized artwork for every PDF dish photo", () => {

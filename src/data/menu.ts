@@ -10,6 +10,7 @@ import {
   barMenuSeeds,
   type BarMenuSeed,
 } from "@/data/bar-menu";
+import { retiredSeafoodSlugs, seafoodMenuSeeds } from "@/data/seafood-menu";
 
 export const categories: Category[] = [
   ["breakfast", "breakfast", "Завтраки", "Таңғы ас"],
@@ -35,6 +36,9 @@ export const categories: Category[] = [
   ["fried-rolls", "fried-rolls", "Жареные роллы", "Қуырылған роллдар"],
   ["baked-rolls", "baked-rolls", "Запечённые роллы", "Пісірілген роллдар"],
   ["sushi-sets", "sushi-sets", "Сеты", "Сеттер"],
+  ["fish", "fish", "Рыба", "Балық"],
+  ["fish-combos", "fish-combos", "Рыбные комбо", "Балық комбосы"],
+  ["sauces", "sauces", "Соусы", "Тұздықтар"],
   ...barCategoryRows,
 ].map(([id, slug, nameRu, nameKk], index) => ({
   id,
@@ -346,24 +350,29 @@ const seeds: ItemSeed[] = [
   [
     "soups",
     "royal-fish-soup",
-    "Уха по-царски",
-    "Патша стиліндегі балық сорпасы",
-    2990,
-    "Лосось, овощи, бульон.",
-    "Ақсерке, көкөністер, сорпа.",
-    "/menu-generated/royal-fish-soup-transparent-v3.png",
-    { isFeatured: true },
+    "Уха",
+    "Балық сорпасы",
+    1700,
+    "Брюшки сёмги, морковь, картошка, рис.",
+    "Ақсеркенің құрсақ еті, сәбіз, картоп, күріш.",
+    "/menu-generated/seafood/fish-ukha.webp",
+    {
+      isFeatured: true,
+    },
   ],
   [
     "soups",
     "tom-yum",
-    "Том Ям с креветками и лососем",
-    "Асшаян мен ақсерке қосылған Том Ям",
-    3690,
-    "Острый тайский суп с лососем, креветками, кокосовым молоком, рисом, грибами и черри.",
-    "Ащы тай сорпасы, ақсерке, асшаян, кокос сүті, күріш, саңырауқұлақтар және шие қызанақтары.",
-    "/menu-assets/page-11-image-02.png",
-    { isFeatured: true, isSpicy: true },
+    "Том ям с рисом",
+    "Күріш қосылған Том ям",
+    2800,
+    "Мидии, креветки, кальмар, сёмга, шампиньоны; рис.",
+    "Мидиялар, асшаяндар, кальмар, ақсерке, қозықұйрық; күрішпен беріледі.",
+    "/menu-generated/seafood/fish-tom-yum.webp",
+    {
+      isFeatured: true,
+      isSpicy: true,
+    },
   ],
   [
     "soups",
@@ -1499,6 +1508,7 @@ const seeds: ItemSeed[] = [
     { isFeatured: true, pieceCount: 80, source: "promotion_graphic" },
   ],
   ...barMenuSeeds,
+  ...seafoodMenuSeeds,
 ];
 
 function normalizedMenuImageUrl(imageUrl?: string) {
@@ -1510,6 +1520,8 @@ function normalizedMenuImageUrl(imageUrl?: string) {
     ?.replace(/\.png$/i, ".webp");
   return fileName ? `/menu-normalized/${fileName}` : imageUrl;
 }
+
+const newSeafoodSlugs = new Set(seafoodMenuSeeds.map((seed) => seed[1]));
 
 export const menuItems: MenuItem[] = seeds.map((seed, index) => {
   const [
@@ -1524,7 +1536,10 @@ export const menuItems: MenuItem[] = seeds.map((seed, index) => {
     flags,
   ] = seed;
   return {
-    id: `item-${String(index + 1).padStart(3, "0")}`,
+    // Keep existing IDs intact; additions use a separate namespace.
+    id: newSeafoodSlugs.has(slug)
+      ? `seafood-${slug}`
+      : `item-${String(index + 1).padStart(3, "0")}`,
     categoryId,
     slug,
     nameRu,
@@ -1540,7 +1555,7 @@ export const menuItems: MenuItem[] = seeds.map((seed, index) => {
     isFeatured: flags?.isFeatured ?? false,
     isSpicy: flags?.isSpicy ?? false,
     isNew: false,
-    isArchived: false,
+    isArchived: retiredSeafoodSlugs.has(slug),
     needsReview: flags?.needsReview ?? false,
     pieceCount: flags?.pieceCount,
     source: flags?.source ?? "menu_pdf",

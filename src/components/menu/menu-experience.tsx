@@ -26,6 +26,7 @@ import {
   type BarTemperature,
 } from "@/lib/bar-menu";
 import { cartQuantity, cartTotal, canOrder } from "@/lib/cart";
+import { groupFoodMenuItems, type FoodGroup } from "@/lib/food-portions";
 import { cn, formatPrice, localize } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
 import { useLocaleStore } from "@/store/locale-store";
@@ -53,20 +54,28 @@ const isBarCategory = (categoryId: string) => categoryId.startsWith("bar-");
 type MenuKind = "main" | "bar";
 
 const ProductCard = memo(function ProductCard({
-  item,
+  item: defaultItem,
+  variants = [],
   onOpen,
   eager = false,
 }: {
   item: MenuItem;
+  variants?: MenuItem[];
   onOpen: (item: MenuItem) => void;
   eager?: boolean;
 }) {
+  const [selectedId, setSelectedId] = useState(defaultItem.id);
+  const item =
+    variants.find((variant) => variant.id === selectedId) ?? defaultItem;
   const locale = useLocaleStore((state) => state.locale);
   const add = useCartStore((state) => state.add);
   const line = useCartStore((state) =>
     state.lines.find((entry) => entry.item.id === item.id),
   );
   const unavailable = !canOrder(item);
+  const name = localize(locale, item.nameRu, item.nameKk);
+  const title =
+    variants.length > 1 ? name.replace(/, (?:0,5|1) кг$/, "") : name;
   return (
     <article className="group grid min-h-full grid-rows-[auto_1fr] overflow-hidden border border-[#020D13]/10 bg-white transition hover:-translate-y-0.5 hover:shadow-[0_18px_55px_rgba(2,13,19,.09)]">
       <button
@@ -85,6 +94,8 @@ const ProductCard = memo(function ProductCard({
             fetchPriority={eager ? "high" : "auto"}
             className={cn(
               "object-contain p-2 transition duration-300 group-hover:opacity-90",
+              item.imageUrl.startsWith("/menu-generated/seafood/") &&
+                "!scale-100 !rotate-0 !p-0",
               enlargedImageSlugs.has(item.slug) && "scale-[1.4]",
               enlargedTwentyPercentImageSlugs.has(item.slug) && "scale-[1.2]",
               item.categoryId === "fast-food" && "scale-[1.2]",
@@ -127,7 +138,7 @@ const ProductCard = memo(function ProductCard({
           className="text-left"
         >
           <h3 className="text-[15px] font-bold leading-snug sm:text-lg">
-            {localize(locale, item.nameRu, item.nameKk)}
+            {title}
           </h3>
           {item.pieceCount && (
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[#020D13]/45">
@@ -139,6 +150,30 @@ const ProductCard = memo(function ProductCard({
               "Состав уточняйте у администратора."}
           </p>
         </button>
+        {variants.length > 1 && (
+          <div
+            className="mt-3 flex gap-1"
+            role="group"
+            aria-label={locale === "kk" ? "Порция салмағы" : "Вес порции"}
+          >
+            {variants.map((variant) => (
+              <button
+                key={variant.id}
+                type="button"
+                aria-pressed={variant.id === item.id}
+                onClick={() => setSelectedId(variant.id)}
+                className={cn(
+                  "min-h-10 flex-1 rounded border px-2 py-1 text-xs font-bold",
+                  variant.id === item.id
+                    ? "border-[#020D13] bg-[#020D13] text-white"
+                    : "border-[#020D13]/15",
+                )}
+              >
+                {variant.slug.endsWith("-500g") ? "0,5 кг" : "1 кг"}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-4">
           <strong className="whitespace-nowrap text-base sm:text-lg">
             {formatPrice(item.price)}
@@ -372,6 +407,7 @@ type MenuSectionData = {
   category: Category;
   items: MenuItem[];
   drinkGroups: BarDrinkGroup[];
+  foodGroups: FoodGroup[];
 };
 
 const MenuSection = memo(function MenuSection({
@@ -403,7 +439,8 @@ const MenuSection = memo(function MenuSection({
           {localize(locale, section.category.nameRu, section.category.nameKk)}
         </h3>
         <span className="shrink-0 text-xs font-semibold text-[#020D13]/45">
-          {barSection ? section.drinkGroups.length : section.items.length} поз.
+          {barSection ? section.drinkGroups.length : section.foodGroups.length}{" "}
+          поз.
         </span>
       </div>
       <div
@@ -418,10 +455,11 @@ const MenuSection = memo(function MenuSection({
           ? section.drinkGroups.map((group) => (
               <DrinkGroupCard key={group.key} group={group} />
             ))
-          : section.items.map((item, itemIndex) => (
+          : section.foodGroups.map((group, itemIndex) => (
               <ProductCard
-                key={item.id}
-                item={item}
+                key={group.key}
+                item={group.items[0]}
+                variants={group.items}
                 eager={sectionIndex === 0 && itemIndex < 4}
                 onOpen={onOpen}
               />
@@ -497,6 +535,8 @@ function ProductDialog({
               sizes="(max-width:768px) 100vw, 50vw"
               className={cn(
                 "object-contain p-3",
+                item.imageUrl.startsWith("/menu-generated/seafood/") &&
+                  "!scale-100 !rotate-0 !p-0",
                 enlargedImageSlugs.has(item.slug) && "scale-[1.4]",
                 enlargedTwentyPercentImageSlugs.has(item.slug) && "scale-[1.2]",
                 item.categoryId === "fast-food" && "scale-[1.2]",
@@ -660,6 +700,9 @@ export function MenuExperience({
           return {
             category,
             items: sectionItems,
+            foodGroups: isBarCategory(category.id)
+              ? []
+              : groupFoodMenuItems(sectionItems),
             drinkGroups: isBarCategory(category.id)
               ? groupBarMenuItems(sectionItems)
               : [],
@@ -669,7 +712,11 @@ export function MenuExperience({
     [availableItems, menuCategories, normalized],
   );
   const visibleItemCount = visibleSections.reduce(
-    (totalCount, section) => totalCount + section.items.length,
+    (totalCount, section) =>
+      totalCount +
+      (isBarCategory(section.category.id)
+        ? section.drinkGroups.length
+        : section.foodGroups.length),
     0,
   );
   const dineInCheckoutHref = preselectedTable
