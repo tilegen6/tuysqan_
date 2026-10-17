@@ -43,6 +43,9 @@ const enlargedTwentyPercentImageSlugs = new Set([
 const rotatedImageClasses: Record<string, string> = {
   "royal-fish-soup": "!scale-[0.75]",
   "tom-yum": "!scale-[0.75]",
+  "wings-ten": "!scale-[0.75]",
+  "shrimp-350g": "!scale-[0.75]",
+  "seafood-saute": "!scale-[0.75]",
   "noodles-meatballs": "rotate-[80deg] scale-[0.86]",
   "t-bone": "rotate-[270deg] scale-[1.15]",
   "khachapuri-adjarian": "rotate-[30deg] scale-[1.5]",
